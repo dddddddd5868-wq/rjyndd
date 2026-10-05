@@ -52,26 +52,32 @@ def update_server_status(name:str, new_status:str) -> bool:
     conn = get_connection()
 
     cursor = conn.execute(
+
         "UPDATE servers SET status = ? WHERE name = ?", (new_status, name)
     )
     
     conn.commit()
     
     updated = cursor.rowcount > 0
+
     conn.close()
 
     return updated
 
 def delete_server(name:str) -> bool:
+
     conn = get_connection()
 
     cursor = conn.execute(
+
         "DELETE FROM servers WHERE name = ?", (name,)
     )
     
     conn.commit()
     
     deleted = cursor.rowcount > 0
+
     conn.close()
 
     return deleted
+

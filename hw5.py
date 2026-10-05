@@ -1,7 +1,10 @@
 import logging
 import os
 import sqlite3
+from html import escape
 from aiogram import Bot, Dispatcher, F, types
+from aiogram.client.session.aiohttp import AiohttpSession
+from aiogram.exceptions import TelegramNetworkError
 from dotenv import load_dotenv
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
@@ -11,10 +14,11 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeybo
 load_dotenv()
 API_TOKEN = os.getenv("BOT_TOKEN")
 if not API_TOKEN:
-    raise RuntimeError("Не задан токен бота. Установите переменную окружения BOT_TOKEN.")
-
+    raise RuntimeError("BOT_TOKEN не найден в файле .env")
 logging.basicConfig(level=logging.INFO)
-bot = Bot(token=API_TOKEN)
+PROXY_URL = os.getenv("BOT_PROXY")
+session = AiohttpSession(proxy=PROXY_URL) if PROXY_URL else AiohttpSession()
+bot = Bot(token=API_TOKEN, session=session)
 dp = Dispatcher()
 
 # --- Работа с базой данных ---
@@ -96,11 +100,11 @@ async def show_items(message: types.Message):
         await message.answer("Ваш список покупок пуст.")
         return
 
-    response = "🛒 **Ваш список покупок:**\n\n"
+    response = "🛒 <b>Ваш список покупок:</b>\n\n"
     for row in rows:
-        response += f"ID: {row[0]} | **{row[1]}** — {row[2]}\n"
+        response += f"ID: {row[0]} | <b>{escape(row[1])}</b> — {escape(row[2])}\n"
     
-    await message.answer(response, parse_mode="Markdown")
+    await message.answer(response, parse_mode="HTML")
 
 # --- Удаление товара ---
 @dp.message(F.text == "🗑️ Удалить товар")
@@ -143,4 +147,10 @@ if __name__ == '__main__':
     import asyncio
     async def main():
         await dp.start_polling(bot)
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except TelegramNetworkError:
+        logging.error(
+            "Не удалось подключиться к Telegram API. "
+            "Проверьте интернет или задайте BOT_PROXY в файле .env."
+        )
